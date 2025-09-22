@@ -12,7 +12,6 @@ st.set_page_config(
 )
 
 # --- Data Loading and Model Training ---
-# @st.cache_data runs this function only once to improve performance
 @st.cache_data
 def load_data_and_model():
     train_df, test_df, model, _ = process_data_and_train_model('train.csv', 'test.csv')
@@ -23,21 +22,18 @@ train_df, model = load_data_and_model()
 # --- Sidebar for Filters ---
 st.sidebar.header("Filter Passenger Data")
 
-# Create a filter for Passenger Class
 selected_class = st.sidebar.multiselect(
     "Passenger Class",
     options=train_df["Pclass"].unique(),
     default=train_df["Pclass"].unique()
 )
 
-# Create a filter for Sex
 selected_sex = st.sidebar.multiselect(
     "Sex",
-    options=train_df["Sex"].unique(), # 0 for male, 1 for female
+    options=train_df["Sex"].unique(), 
     default=train_df["Sex"].unique()
 )
 
-# Filter the dataframe based on selection
 df_selection = train_df.query(
     "Pclass == @selected_class & Sex == @selected_sex"
 )
@@ -87,38 +83,37 @@ right_column.pyplot(fig_sex)
 # --- Prediction Tool in Sidebar ---
 st.sidebar.header("Check Your Survival Chance!")
 
-# Input fields for user
+
 pclass_input = st.sidebar.selectbox("Your Class", [1, 2, 3])
 sex_input = st.sidebar.selectbox("Your Sex", ["Male", "Female"])
 agegroup_input = st.sidebar.selectbox("Your Age Group", ['Baby', 'Child', 'Teenager', 'Student', 'Young Adult', 'Adult', 'Senior'])
-# Add other features if your model uses them, like SibSp, Parch, etc.
+
 
 if st.sidebar.button("Predict"):
-    # Convert text inputs to the numbers our model expects
+ 
     sex_num = 1 if sex_input == "Female" else 0
     age_map = {'Baby': 1, 'Child': 2, 'Teenager': 3, 'Student': 4, 'Young Adult': 5, 'Adult': 6, 'Senior': 7}
     agegroup_num = age_map[agegroup_input]
     
-    # Create a dataframe from the inputs for prediction
-    # NOTE: The columns must match the ones used for training!
-    # We will make up dummy values for the other columns.
+
     features = pd.DataFrame({
         'Pclass': [pclass_input],
         'Sex': [sex_num],
-        'SibSp': [0], # Dummy value
-        'Parch': [0], # Dummy value
-        'Embarked': [1], # Dummy value
+        'SibSp': [0], 
+        'Parch': [0], 
+        'Embarked': [1],
         'AgeGroup': [agegroup_num],
-        'Title': [1], # Dummy value
-        'FareBand': [1] # Dummy value
+        'Title': [1],
+        'FareBand': [1]
     })
     
-    # Make prediction
+  
     prediction = model.predict(features)
     prediction_proba = model.predict_proba(features)
 
-    # Display result
+    
     if prediction[0] == 1:
         st.sidebar.success(f"You Would Have Likely Survived! (Chance: {round(prediction_proba[0][1]*100, 2)}%)")
     else:
+
         st.sidebar.error(f"You Would Have Likely Not Survived. (Chance: {round(prediction_proba[0][1]*100, 2)}%)")
