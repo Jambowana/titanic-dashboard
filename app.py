@@ -1,0 +1,117 @@
+import streamlit as st
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+from data_processing import process_data_and_train_model 
+
+
+st.set_page_config(
+    page_title="Titanic Survival Dashboard",
+    page_icon="🚢",
+    layout="wide"
+)
+
+
+@st.cache_data
+def load_data_and_model():
+    train_df, test_df, model, _ = process_data_and_train_model('train.csv', 'test.csv')
+    return train_df, model
+
+train_df, model = load_data_and_model()
+
+st.sidebar.header("Filter Passenger Data")
+
+
+selected_class = st.sidebar.multiselect(
+    "Passenger Class",
+    options=train_df["Pclass"].unique(),
+    default=train_df["Pclass"].unique()
+)
+ 
+selected_sex = st.sidebar.multiselect(
+    "Sex",
+    options=train_df["Sex"].unique(), 
+    default=train_df["Sex"].unique()
+)
+
+
+df_selection = train_df.query(
+    "Pclass == @selected_class & Sex == @selected_sex"
+)
+
+
+st.title(" Titanic Survival Analysis Dashboard")
+st.markdown("This dashboard provides an interactive analysis of the factors that influenced survival on the Titanic.")
+
+
+total_passengers = df_selection.shape[0]
+survival_rate = round(df_selection["Survived"].mean() * 100, 1)
+survivors = df_selection["Survived"].sum()
+
+col1, col2, col3 = st.columns(3)
+with col1:
+    st.metric("Passengers in Selection", f"{total_passengers}")
+with col2:
+    st.metric("Total Survivors", f"{survivors}")
+with col3:
+    st.metric("Survival Rate", f"{survival_rate}%")
+
+st.markdown("---")
+
+
+st.header("Visual Analysis of Survival")
+
+
+fig_class, ax_class = plt.subplots()
+sns.barplot(data=df_selection, x="Pclass", y="Survived", ax=ax_class)
+ax_class.set_title("Survival Rate by Passenger Class")
+ax_class.set_ylabel("Survival Rate")
+
+
+fig_sex, ax_sex = plt.subplots()
+sns.barplot(data=df_selection, x="Sex", y="Survived", ax=ax_sex)
+ax_sex.set_title("Survival Rate by Sex")
+ax_sex.set_xticks([0, 1])
+ax_sex.set_xticklabels(['Male', 'Female'])
+ax_sex.set_ylabel("Survival Rate")
+
+
+left_column, right_column = st.columns(2)
+left_column.pyplot(fig_class)
+right_column.pyplot(fig_sex)
+
+
+
+st.sidebar.header("Check Your Survival Chance!")
+
+
+pclass_input = st.sidebar.selectbox("Your Class", [1, 2, 3])
+sex_input = st.sidebar.selectbox("Your Sex", ["Male", "Female"])
+agegroup_input = st.sidebar.selectbox("Your Age Group", ['Baby', 'Child', 'Teenager', 'Student', 'Young Adult', 'Adult', 'Senior'])
+
+
+if st.sidebar.button("Predict"):
+    
+    sex_num = 1 if sex_input == "Female" else 0
+    age_map = {'Baby': 1, 'Child': 2, 'Teenager': 3, 'Student': 4, 'Young Adult': 5, 'Adult': 6, 'Senior': 7}
+    agegroup_num = age_map[agegroup_input]
+    
+   
+    features = pd.DataFrame({
+        'Pclass': [pclass_input],
+        'Sex': [sex_num],
+        'SibSp': [0],
+        'Parch': [0], 
+        'Embarked': [1], 
+        'AgeGroup': [agegroup_num],
+        'Title': [1], 
+        'FareBand': [1]
+    })
+    
+
+    prediction = model.predict(features)
+    prediction_proba = model.predict_proba(features)
+    if prediction[0] == 1:
+        st.sidebar.success(f"You Would Have Likely Survived! (Chance: {round(prediction_proba[0][1]*100, 2)}%)")
+    else:
+        st.sidebar.error(f"You Would Have Likely Not Survived. (Chance: {round(prediction_proba[0][1]*100, 2)}%)")
